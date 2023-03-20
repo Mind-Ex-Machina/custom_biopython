@@ -166,7 +166,15 @@ class PDBParser:
         current_resname = None
 
         for i in range(0, len(coords_trailer)):
+            shift = 0 #@MEM
             line = coords_trailer[i].rstrip("\n")
+            line_check = line[6:].split() #@MEM
+            try: #@MEM
+                serial_number = int(line_check[0]) #@MEM
+                if len(line_check[0]) > 5: #@MEM
+                    shift = len(line_check[0]) - 5 #@MEM
+            except Exception: #@MEM
+                serial_number = 0 #@MEM
             record_type = line[0:6]
             global_line_counter = self.line_counter + local_line_counter + 1
             structure_builder.set_line_counter(global_line_counter)
@@ -178,7 +186,7 @@ class PDBParser:
                     structure_builder.init_model(current_model_id)
                     current_model_id += 1
                     model_open = 1
-                fullname = line[12:16]
+                fullname = line[12+shift:16+shift] #@MEM
                 # get rid of whitespace in atom names
                 split_list = fullname.split()
                 if len(split_list) != 1:
@@ -188,15 +196,20 @@ class PDBParser:
                 else:
                     # atom name is like " CA ", so we can strip spaces
                     name = split_list[0]
-                altloc = line[16]
-                resname = line[17:20].strip()
-                chainid = line[21]
-                try:
-                    serial_number = int(line[6:11])
-                except Exception:
-                    serial_number = 0
-                resseq = int(line[22:26].split()[0])  # sequence identifier
-                icode = line[26]  # insertion code
+                altloc = line[16+shift] #@MEM
+                resname = line[17+shift:20+shift].strip() #@MEM
+                chainid = line[21+shift] #@MEM
+#@MEM
+# =============================================================================
+#                 try:
+#                     serial_number = int(line[6:11])
+#                 except Exception:
+#                     serial_number = 0
+# =============================================================================
+                #@MEM
+                resseq = int(line[22+shift:26+shift].split()[0])  # sequence identifier
+                #@MEM
+                icode = line[26+shift]  # insertion code
                 if record_type == "HETATM":  # hetero atom flag
                     if resname == "HOH" or resname == "WAT":
                         hetero_flag = "W"
@@ -207,9 +220,9 @@ class PDBParser:
                 residue_id = (hetero_flag, resseq, icode)
                 # atomic coordinates
                 try:
-                    x = float(line[30:38])
-                    y = float(line[38:46])
-                    z = float(line[46:54])
+                    x = float(line[30+shift:38+shift]) #@MEM
+                    y = float(line[38+shift:46+shift]) #@MEM
+                    z = float(line[46+shift:54+shift]) #@MEM
                 except Exception:
                     # Should we allow parsing to continue in permissive mode?
                     # If so, what coordinates should we default to?  Easier to abort!
@@ -222,7 +235,7 @@ class PDBParser:
                 # occupancy & B factor
                 if not self.is_pqr:
                     try:
-                        occupancy = float(line[54:60])
+                        occupancy = float(line[54+shift:60+shift]) #@MEM
                     except Exception:
                         self._handle_PDB_exception(
                             "Invalid or missing occupancy", global_line_counter
@@ -238,7 +251,7 @@ class PDBParser:
                             PDBConstructionWarning,
                         )
                     try:
-                        bfactor = float(line[60:66])
+                        bfactor = float(line[60+shift:66+shift]) #@MEM
                     except Exception:
                         self._handle_PDB_exception(
                             "Invalid or missing B factor", global_line_counter
@@ -248,14 +261,14 @@ class PDBParser:
                 elif self.is_pqr:
                     # Attempt to parse charge and radius fields
                     try:
-                        pqr_charge = float(line[54:62])
+                        pqr_charge = float(line[54+shift:62+shift]) #@MEM
                     except Exception:
                         self._handle_PDB_exception(
                             "Invalid or missing charge", global_line_counter
                         )
                         pqr_charge = None  # Rather than arbitrary zero or one
                     try:
-                        radius = float(line[62:70])
+                        radius = float(line[62+shift:70+shift]) #@MEM
                     except Exception:
                         self._handle_PDB_exception(
                             "Invalid or missing radius", global_line_counter
@@ -267,8 +280,8 @@ class PDBParser:
                         self._handle_PDB_exception(message, global_line_counter)
                         radius = None
 
-                segid = line[72:76]
-                element = line[76:78].strip().upper()
+                segid = line[72+shift:76+shift] #@MEM
+                element = line[76+shift:78+shift].strip().upper() #@MEM
                 if current_segid != segid:
                     current_segid = segid
                     structure_builder.init_seg(current_segid)
@@ -328,13 +341,13 @@ class PDBParser:
             elif record_type == "ANISOU":
                 anisou = [
                     float(x)
-                    for x in (
-                        line[28:35],
-                        line[35:42],
-                        line[43:49],
-                        line[49:56],
-                        line[56:63],
-                        line[63:70],
+                    for x in (  #@MEM
+                        line[28+shift:35+shift],
+                        line[35+shift:42+shift],
+                        line[43+shift:49+shift],
+                        line[49+shift:56+shift],
+                        line[56+shift:63+shift],
+                        line[63+shift:70+shift],
                     )
                 ]
                 # U's are scaled by 10^4
@@ -342,7 +355,7 @@ class PDBParser:
                 structure_builder.set_anisou(anisou_array)
             elif record_type == "MODEL ":
                 try:
-                    serial_num = int(line[10:14])
+                    serial_num = int(line[10+shift:14+shift]) #@MEM
                 except Exception:
                     self._handle_PDB_exception(
                         "Invalid or missing model serial number", global_line_counter
@@ -366,12 +379,13 @@ class PDBParser:
                 siguij = [
                     float(x)
                     for x in (
-                        line[28:35],
-                        line[35:42],
-                        line[42:49],
-                        line[49:56],
-                        line[56:63],
-                        line[63:70],
+                        #@MEM
+                        line[28+shift:35+shift],
+                        line[35+shift:42+shift],
+                        line[42+shift:49+shift],
+                        line[49+shift:56+shift],
+                        line[56+shift:63+shift],
+                        line[63+shift:70+shift],
                     )
                 ]
                 # U sigma's are scaled by 10^4
@@ -382,11 +396,12 @@ class PDBParser:
                 sigatm = [
                     float(x)
                     for x in (
-                        line[30:38],
-                        line[38:46],
-                        line[46:54],
-                        line[54:60],
-                        line[60:66],
+                        #@MEM
+                        line[30+shift:38+shift],
+                        line[38+shift:46+shift],
+                        line[46+shift:54+shift],
+                        line[54+shift:60+shift],
+                        line[60+shift:66+shift],
                     )
                 ]
                 sigatm_array = numpy.array(sigatm, "f")

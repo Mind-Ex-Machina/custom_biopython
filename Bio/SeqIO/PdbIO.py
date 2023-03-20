@@ -55,7 +55,7 @@ def AtomIterator(pdb_id, structure):
         # HETATM mod. res. policy: remove mod if in sequence, else discard
         residues = [
             res
-            for res in chain.get_unpacked_list()
+            for res in list(chain.get_residues())
             if _res2aacode(res.get_resname().upper()) != "X"
         ]
         if not residues:
@@ -107,6 +107,7 @@ def AtomIterator(pdb_id, structure):
 
         record.annotations["start"] = int(rnumbers[0])
         record.annotations["end"] = int(rnumbers[-1])
+        record.annotations["res_numbering"] = rnumbers
         yield record
 
 
