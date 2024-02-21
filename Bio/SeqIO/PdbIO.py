@@ -63,20 +63,59 @@ def AtomIterator(pdb_id, structure):
         # Identify missing residues in the structure
         # (fill the sequence with 'X' residues in these regions)
         gaps = []
+        index_gaps = []
+        #maping = []
         rnumbers = [r.id[1] for r in residues]
+        rnumbering = [(r.id[1], r.id[2]) for r in residues]
+        #print("Numbering length: " + str(len(rnumbers)))
         for i, rnum in enumerate(rnumbers[:-1]):
+            #maping.append(str(i + 1) + "-" + str(rnum))
             if rnumbers[i + 1] != rnum + 1 and rnumbers[i + 1] != rnum:
                 # It's a gap!
                 gaps.append((i + 1, rnum, rnumbers[i + 1]))
+            # if rnumbers[i + 1][0] == rnum[0]:
+            #     if rnum[1] != ' ' and ord(rnumbers[i + 1][1]) != ord(rnum[1]) + 1:
+            #         # It's a gap!
+            #         print("Letter gap!")
+            #         gaps.append((i + 1, rnum, rnumbers[i + 1]))
+            # elif rnumbers[i + 1][0] != rnum[0] + 1:
+            #     # It's a gap!
+            #     gaps.append((i + 1, rnum, rnumbers[i + 1]))
+        #print(maping)
         if gaps:
+            #print(gaps)
+            shift = 0
             res_out = []
+            #rnumber_out = []
             prev_idx = 0
             for i, pregap, postgap in gaps:
+                # pregap_id, pregap_letter = pregap
+                # postgap_id, postgap_letter = postgap
+                # if postgap_id > pregap_id:
+                    # gapsize = postgap_id - pregap_id - 1
+                    # res_out.extend(_res2aacode(x) for x in residues[prev_idx:i])
+                    # rnumber_out.extend(num for num in rnumbers[prev_idx:i])
+                    # res_out.append("-" * gapsize)
+                    # rnumber_out.append(*range(pregap_id, postgap_id))
+                    # prev_idx = i
+                    # index_gaps.append((i+shift+1,i+shift+gapsize,gapsize))
+                    # shift += gapsize
                 if postgap > pregap:
                     gapsize = postgap - pregap - 1
                     res_out.extend(_res2aacode(x) for x in residues[prev_idx:i])
+                    res_out.append("-" * gapsize)
                     prev_idx = i
-                    res_out.append("X" * gapsize)
+                    index_gaps.append((i+shift+1,i+shift+gapsize,gapsize))
+                    shift += gapsize
+                # elif postgap_letter > pregap_letter:
+                #     gapsize = ord(postgap_letter) - ord(pregap_letter) - 1
+                #     res_out.extend(_res2aacode(x) for x in residues[prev_idx:i])
+                #     rnumber_out.extend(num for num in rnumbers[prev_idx:i])
+                #     res_out.append("-" * gapsize)
+                #     rnumber_out.append(pregap_id + chr(letter) for letter in range(ord(pregap_letter)+1, ord(postgap_letter)))
+                #     prev_idx = i
+                #     index_gaps.append((i+shift+1,i+shift+gapsize,gapsize))
+                #     shift += gapsize
                 else:
                     warnings.warn(
                         "Ignoring out-of-order residues after a gap",
@@ -84,30 +123,43 @@ def AtomIterator(pdb_id, structure):
                     )
                     # Keep the normal part, drop the out-of-order segment
                     # (presumably modified or hetatm residues, e.g. 3BEG)
-                    res_out.extend(_res2aacode(x) for x in residues[prev_idx:i])
+                    #res_out.extend(_res2aacode(x) for x in residues[prev_idx:i])
+                    
+                    #Skipp this part - just use a whole sequence as it is
+                    res_out = [_res2aacode(x) for x in residues]
+                    #rnumber_out = rnumbers
+                    index_gaps = []
                     break
             else:
                 # Last segment
                 res_out.extend(_res2aacode(x) for x in residues[prev_idx:])
+                #rnumber_out.extend(num for num in rnumbers[prev_idx:i])
         else:
             # No gaps
             res_out = [_res2aacode(x) for x in residues]
+            #rnumber_out = rnumbers
+                
         record_id = f"{pdb_id}:{chn_id}"
         # ENH - model number in SeqRecord id if multiple models?
         # id = "Chain%s" % str(chain.id)
         # if len(structure) > 1 :
         #     id = ("Model%s|" % str(model.id)) + id
 
-        record = SeqRecord(Seq("".join(res_out)), id=record_id, description=record_id)
+        # Sequence with no gap filling
+        #record = SeqRecord(Seq("".join(res_out)), id=record_id, description=record_id)
+        record = SeqRecord(Seq("".join([_res2aacode(x) for x in residues])), id=record_id, description=record_id)
         # TODO: Test PDB files with DNA and RNA too:
         record.annotations["molecule_type"] = "protein"
-
         record.annotations["model"] = model.id
         record.annotations["chain"] = chain.id
 
         record.annotations["start"] = int(rnumbers[0])
         record.annotations["end"] = int(rnumbers[-1])
-        record.annotations["res_numbering"] = rnumbers
+        record.annotations["gaps"] = gaps
+        record.annotations["numbering"] = rnumbering
+        record.annotations["index_gaps"] = index_gaps
+        record.annotations["filled_seq"] = "".join(res_out)
+        #record.annotations["seq_nogap"] = "".join([_res2aacode(x) for x in residues])
         yield record
 
 
